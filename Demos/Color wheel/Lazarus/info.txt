@@ -1,0 +1,4 @@
+﻿
+To compile, you need:
+1. JPLib: https://github.com/jackdp/JPLib
+2. JPPack: https://github.com/jackdp/JPPack

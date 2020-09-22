@@ -1,0 +1,3 @@
+
+Based on GdiPlus 1.2.1
+http://www.bilsen.com/gdiplus/GdiPlus1.2.1.zip
