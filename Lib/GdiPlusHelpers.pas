@@ -1,6 +1,8 @@
 unit GdiPlusHelpers;
 
-{$IFDEF FPC}{$MODE DelphiUnicode}{$ENDIF}
+{$IFDEF FPC}
+  {$MODE DelphiUnicode} // must be UNICODE UTF-16! FPC default encoding = UTF-8
+{$ENDIF}
 
 { Delphi GDI+ Library for use with Delphi 2009 or later.
   Copyright (C) 2009 by Erik van Bilsen.
@@ -39,9 +41,19 @@ NO LIABILITY for damages of any kind.
 
   ------------------------------------
   Jacek Pazera
-  https://www,pazera-software.com
+  https://www.pazera-software.com
+  https://github.com/jackdp
+
   2020.09.19
-  +Lazarus/FPC compatibility
+    Lazarus/FPC compatibility
+
+  2022.05.06
+    SetGPPenStyle
+    GetGPFontName - Get the first GDI+ compatible font from the given array
+    TransparencyToAlpha
+    HatchStyleToStrID
+    TryStrIDToHatchStyle
+    GPFontList - List of GDI+ compatible fonts
 }
 
 
@@ -58,6 +70,8 @@ uses
   Windows,
   {$IFDEF FPC}LCLIntf, LCLType,{$ENDIF}
   {$IFDEF DCC}{$IFDEF HAS_SYSTEM_UITYPES}System.UITypes,{$ENDIF}{$ENDIF}
+  SysUtils,
+  Classes,
   Graphics,
   Controls,
   GdiPlus;
@@ -96,7 +110,23 @@ function GPColor(const AColor: TColor; Alpha: Byte = 255): TAlphaColor;
 function GPTextWidthF(gr: IGPGraphics; Text: {$IFDEF FPC}UnicodeString{$ELSE}string{$ENDIF}; Font: IGPFont; px: Single = 0; py: Single = 0): Single;
 function GPTextHeightF(gr: IGPGraphics; Text: {$IFDEF FPC}UnicodeString{$ELSE}string{$ENDIF}; Font: IGPFont; px: Single = 0; py: Single = 0): Single;
 
+procedure SetGPPenStyle(var Pen: IGPPen; const PenStyle: TPenStyle);
+function GetGPFontName(const FontNameArray: array of string): string;
+function TransparencyToAlpha(const TransparencyInPercent: Byte): Byte;
+
+function HatchStyleToStrID(const HatchStyle: TGPHatchStyle): string;
+function TryStrIDToHatchStyle(const StrID: string; var hs: TGPHatchStyle): Boolean;
+
+
+var
+  GPFontList: TStringList;
+
+
+
 implementation
+
+
+
 
 { TGPCanvasHelper }
 
@@ -136,6 +166,229 @@ end;
 
 
 // jacek
+function HatchStyleToStrID(const HatchStyle: TGPHatchStyle): string;
+var
+  s: string;
+begin
+  case HatchStyle of
+    HatchStyleHorizontal: s := 'Horizontal';
+    HatchStyleVertical: s := 'Vertical';
+    HatchStyleForwardDiagonal: s := 'ForwardDiagonal';
+    HatchStyleBackwardDiagonal: s := 'BackwardDiagonal';
+    HatchStyleCross: s := 'Cross';
+    HatchStyleDiagonalCross: s := 'DiagonalCross';
+    HatchStyle05Percent: s := '05Percent';
+    HatchStyle10Percent: s := '10Percent';
+    HatchStyle20Percent: s := '20Percent';
+    HatchStyle25Percent: s := '25Percent';
+    HatchStyle30Percent: s := '30Percent';
+    HatchStyle40Percent: s := '40Percent';
+    HatchStyle50Percent: s := '50Percent';
+    HatchStyle60Percent: s := '60Percent';
+    HatchStyle70Percent: s := '70Percent';
+    HatchStyle75Percent: s := '75Percent';
+    HatchStyle80Percent: s := '80Percent';
+    HatchStyle90Percent: s := '90Percent';
+    HatchStyleLightDownwardDiagonal: s := 'LightDownwardDiagonal';
+    HatchStyleLightUpwardDiagonal: s:= 'LightUpwardDiagonal';
+    HatchStyleDarkDownwardDiagonal: s := 'DarkDownwardDiagonal';
+    HatchStyleDarkUpwardDiagonal: s := 'DarkUpwardDiagonal';
+    HatchStyleWideDownwardDiagonal: s := 'WideDownwardDiagonal';
+    HatchStyleWideUpwardDiagonal: s := 'WideUpwardDiagonal';
+    HatchStyleLightVertical: s := 'LightVertical';
+    HatchStyleLightHorizontal: s := 'LightHorizontal';
+    HatchStyleNarrowVertical: s := 'NarrowVertical';
+    HatchStyleNarrowHorizontal: s := 'NarrowHorizontal';
+    HatchStyleDarkVertical: s := 'DarkVertical';
+    HatchStyleDarkHorizontal: s := 'DarkHorizontal';
+    HatchStyleDashedDownwardDiagonal: s := 'DashedDownwardDiagonal';
+    HatchStyleDashedUpwardDiagonal: s := 'DashedUpwardDiagonal';
+    HatchStyleDashedHorizontal: s := 'DashedHorizontal';
+    HatchStyleDashedVertical: s := 'DashedVertical';
+    HatchStyleSmallConfetti: s := 'SmallConfetti';
+    HatchStyleLargeConfetti: s := 'LargeConfetti';
+    HatchStyleZigZag: s := 'ZigZag';
+    HatchStyleWave: s := 'Wave';
+    HatchStyleDiagonalBrick: s := 'DiagonalBrick';
+    HatchStyleHorizontalBrick: s := 'HorizontalBrick';
+    HatchStyleWeave: s := 'Weave';
+    HatchStylePlaid: s := 'Plaid';
+    HatchStyleDivot: s := 'Divot';
+    HatchStyleDottedGrid: s := 'DottedGrid';
+    HatchStyleDottedDiamond: s := 'DottedDiamond';
+    HatchStyleShingle: s := 'Shingle';
+    HatchStyleTrellis: s := 'Trellis';
+    HatchStyleSphere: s := 'Sphere';
+    HatchStyleSmallGrid: s := 'SmallGrid';
+    HatchStyleSmallCheckerBoard: s := 'SmallCheckerBoard';
+    HatchStyleLargeCheckerBoard: s := 'LargeCheckerBoard';
+    HatchStyleOutlinedDiamond: s := 'OutlinedDiamond';
+    HatchStyleSolidDiamond: s := 'SolidDiamond';
+  else
+    s := 'DiagonalCross';
+  end;
+  Result := s;
+end;
+
+function TryStrIDToHatchStyle(const StrID: string; var hs: TGPHatchStyle): Boolean;
+var
+  s: string;
+
+  function TrimFromStart(const s: string; const StringToCut: string): string;
+  begin
+    if UpperCase(Copy(s, 1, Length(StringToCut))) = UpperCase(StringToCut) then Result := Copy(s, Length(StringToCut) + 1, Length(s))
+    else Result := s;
+  end;
+
+begin
+  Result := False;
+  s := StrID;
+  s := TrimFromStart(s, 'HatchStyle');
+  s := Trim(LowerCase(s));
+  s := StringReplace(s, ' ', '', [rfReplaceAll]);
+
+  if s = 'horizontal' then hs := HatchStyleHorizontal
+  else if s = 'vertical' then hs := HatchStyleVertical
+  else if s = 'forwarddiagonal' then hs := HatchStyleForwardDiagonal
+  else if s = 'backwarddiagonal' then hs := HatchStyleBackwardDiagonal
+  else if s = 'cross' then hs := HatchStyleCross
+  else if s = 'diagonalcross' then hs := HatchStyleDiagonalCross
+  else if s = '05percent' then hs := HatchStyle05Percent
+  else if s = '10percent' then hs := HatchStyle10Percent
+  else if s = '20percent' then hs := HatchStyle20Percent
+  else if s = '25percent' then hs := HatchStyle25Percent
+  else if s = '30percent' then hs := HatchStyle30Percent
+  else if s = '40percent' then hs := HatchStyle40Percent
+  else if s = '50percent' then hs := HatchStyle50Percent
+  else if s = '60percent' then hs := HatchStyle60Percent
+  else if s = '70percent' then hs := HatchStyle70Percent
+  else if s = '75percent' then hs := HatchStyle75Percent
+  else if s = '80percent' then hs := HatchStyle80Percent
+  else if s = '90percent' then hs := HatchStyle90Percent
+  else if s = 'lightdownwarddiagonal' then hs := HatchStyleLightDownwardDiagonal
+  else if s = 'lightupwarddiagonal' then hs := HatchStyleLightUpwardDiagonal
+  else if s = 'darkdownwarddiagonal' then hs := HatchStyleDarkDownwardDiagonal
+  else if s = 'darkupwarddiagonal' then hs := HatchStyleDarkUpwardDiagonal
+  else if s = 'widedownwarddiagonal' then hs := HatchStyleWideDownwardDiagonal
+  else if s = 'wideupwarddiagonal' then hs := HatchStyleWideUpwardDiagonal
+  else if s = 'lightvertical' then hs := HatchStyleLightVertical
+  else if s = 'lighthorizontal' then hs := HatchStyleLightHorizontal
+  else if s = 'narrowvertical' then hs := HatchStyleNarrowVertical
+  else if s = 'narrowhorizontal' then hs := HatchStyleNarrowHorizontal
+  else if s = 'darkvertical' then hs := HatchStyleDarkVertical
+  else if s = 'darkhorizontal' then hs := HatchStyleDarkHorizontal
+  else if s = 'dasheddownwarddiagonal' then hs := HatchStyleDashedDownwardDiagonal
+  else if s = 'dashedupwarddiagonal' then hs := HatchStyleDashedUpwardDiagonal
+  else if s = 'dashedhorizontal' then hs := HatchStyleDashedHorizontal
+  else if s = 'dashedvertical' then hs := HatchStyleDashedVertical
+  else if s = 'smallconfetti' then hs := HatchStyleSmallConfetti
+  else if s = 'largeconfetti' then hs := HatchStyleLargeConfetti
+  else if s = 'zigzag' then hs := HatchStyleZigZag
+  else if s = 'wave' then hs := HatchStyleWave
+  else if s = 'diagonalbrick' then hs := HatchStyleDiagonalBrick
+  else if s = 'horizontalbrick' then hs := HatchStyleHorizontalBrick
+  else if s = 'weave' then hs := HatchStyleWeave
+  else if s = 'plaid' then hs := HatchStylePlaid
+  else if s = 'divot' then hs := HatchStyleDivot
+  else if s = 'dottedgrid' then hs := HatchStyleDottedGrid
+  else if s = 'dotteddiamond' then hs := HatchStyleDottedDiamond
+  else if s = 'shingle' then hs := HatchStyleShingle
+  else if s = 'trellis' then hs := HatchStyleTrellis
+  else if s = 'sphere' then hs := HatchStyleSphere
+  else if s = 'smallgrid' then hs := HatchStyleSmallGrid
+  else if s = 'smallcheckerboard' then hs := HatchStyleSmallCheckerBoard
+  else if s = 'largecheckerboard' then hs := HatchStyleLargeCheckerBoard
+  else if s = 'outlineddiamond' then hs := HatchStyleOutlinedDiamond
+  else if s = 'soliddiamond' then hs := HatchStyleSolidDiamond
+  else Exit;
+
+  Result := True;
+end;
+
+function TransparencyToAlpha(const TransparencyInPercent: Byte): Byte;
+begin
+  if TransparencyInPercent = 0 then Result := 255
+  else if TransparencyInPercent = 100 then Result := 0
+  else Result := Round(255 - (TransparencyInPercent * 2.55));
+end;
+
+function GetGPFontName(const FontNameArray: array of string): string;
+var
+  FontName: string;
+  i: integer;
+begin
+  for i := Low(FontNameArray) to High(FontNameArray) do
+  begin
+    FontName := FontNameArray[i];
+    {$IFDEF FPC}
+    if GPFontList.IndexOf(string(FontName)) >= 0 then
+    {$ELSE}
+    if GPFontList.IndexOf(FontName) >= 0 then
+    {$ENDIF}
+    begin
+      Result := FontName;
+      Break;
+    end;
+  end;
+end;
+
+procedure SetGPPenStyle(var Pen: IGPPen; const PenStyle: TPenStyle);
+var
+  PatternArray: array of Single;
+  xDash, xSpace, xDot: Single;
+begin
+  xDash := 5;
+  xSpace := 3;
+  xDot := 1;
+
+  case PenStyle of
+
+    psSolid: Pen.SetDashStyle(DashStyleSolid);
+
+    psDash:
+      begin
+        SetLength(PatternArray{%H-}, 2);
+        PatternArray[0] := xDash;
+        PatternArray[1] := xSpace;
+        Pen.SetDashPattern(PatternArray);
+      end;
+
+    psDot:
+      begin
+        SetLength(PatternArray, 2);
+        PatternArray[0] := xDot;
+        PatternArray[1] := xSpace;
+        Pen.SetDashPattern(PatternArray);
+      end;
+
+    psDashDot:
+      begin
+        SetLength(PatternArray, 4);
+        PatternArray[0] := xDash;
+        PatternArray[1] := xSpace;
+        PatternArray[2] := xDot;
+        PatternArray[3] := xSpace;
+        Pen.SetDashPattern(PatternArray);
+      end;
+
+    psDashDotDot:
+      begin
+        SetLength(PatternArray, 6);
+        PatternArray[0] := xDash;
+        PatternArray[1] := xSpace;
+        PatternArray[2] := xDot;
+        PatternArray[3] := xSpace;
+        PatternArray[4] := xDot;
+        PatternArray[5] := xSpace;
+        Pen.SetDashPattern(PatternArray);
+      end;
+
+    else
+      // psinsideFrame, psPattern, psClear
+      Pen.SetDashStyle(DashStyleSolid);
+  end;
+end;
+
 procedure GdipCheck(const Status: TGPStatus); inline;
 begin
   if (Status <> Ok) then
@@ -186,5 +439,34 @@ begin
   RectF := gr.MeasureString(Text, Font, Origin);
   Result := RectF.Height;
 end;
+
+
+
+procedure InitGPFontList;
+var
+  FontCollection: IGPInstalledFontCollection;
+  FontFamily: IGPFontFamily;
+begin
+  if not Assigned(GPFontList) then GPFontList := TStringList.Create;
+  GPFontList.BeginUpdate;
+  try
+    FontCollection := TGPInstalledFontCollection.Create;
+    for FontFamily in FontCollection.Families do
+      {$IFDEF FPC}
+      GPFontList.Add(AnsiString(FontFamily.FamilyName))
+      {$ELSE}
+      GPFontList.Add(FontFamily.FamilyName)
+      {$ENDIF}
+  finally
+    GPFontList.EndUpdate;
+  end;
+end;
+
+initialization
+  InitGPFontList;
+
+finalization
+  if Assigned(GPFontList) then GPFontList.Free;
+
 
 end.

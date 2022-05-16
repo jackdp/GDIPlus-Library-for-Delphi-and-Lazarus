@@ -135,5 +135,14 @@ Open/create some project. In the **Project Inspector** add `LazGDIPlus` to **Req
 
 ## Changelog
 
+**16.05.2022**  
+* GPFontList - Global list of GDI+ compatible fonts
+* SetGPPenStyle - Set IGPPen style from TenStyle
+* GetGPFontName - Get the first GDI+ compatible font name from the given array
+* TransparencyToAlpha
+* HatchStyleToStrID
+* TryStrIDToHatchStyle
+
+
 **23.09.2020**  
 Initial commit with the Free Pascal / Lazarus support.
