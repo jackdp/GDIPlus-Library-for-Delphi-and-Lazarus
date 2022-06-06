@@ -113,9 +113,14 @@ function GPTextHeightF(gr: IGPGraphics; Text: {$IFDEF FPC}UnicodeString{$ELSE}st
 procedure SetGPPenStyle(var Pen: IGPPen; const PenStyle: TPenStyle);
 function GetGPFontName(const FontNameArray: array of string): string;
 function TransparencyToAlpha(const TransparencyInPercent: Byte): Byte;
+function FontStylesToGPFontStyle(const Style: TFontStyles): TGPFontStyle;
+function GPFontStyleToFontStyles(const Style: TGPFontStyle): TFontStyles;
+function GPFontStyleToStr(const FontStyle: TGPFontStyle): string;
+function StrToGPFontStyle(FontStyleStr: string): TGPFontStyle;
 
 function HatchStyleToStrID(const HatchStyle: TGPHatchStyle): string;
 function TryStrIDToHatchStyle(const StrID: string; var hs: TGPHatchStyle): Boolean;
+
 
 
 var
@@ -332,6 +337,44 @@ begin
   end;
 end;
 
+function FontStylesToGPFontStyle(const Style: TFontStyles): TGPFontStyle;
+begin
+  Result := [];
+  if fsBold in Style then Include(Result, FontStyleBold);
+  if fsItalic in Style then Include(Result, FontStyleItalic);
+  if fsUnderline in Style then Include(Result, FontStyleUnderline);
+  if fsStrikeOut in Style then Include(Result, FontStyleStrikeout);
+end;
+
+function GPFontStyleToFontStyles(const Style: TGPFontStyle): TFontStyles;
+begin
+  Result := [];
+  if FontStyleBold in Style then Include(Result, fsBold);
+  if FontStyleItalic in Style then Include(Result, fsItalic);
+  if FontStyleUnderline in Style then Include(Result, fsUnderline);
+  if FontStyleStrikeout in Style then Include(Result, fsStrikeout);
+end;
+
+function GPFontStyleToStr(const FontStyle: TGPFontStyle): string;
+begin
+  Result := '';
+  if FontStyleBold in FontStyle then Result := Result + ',bold';
+  if FontStyleItalic in FontStyle then Result := Result + ',italic';
+  if FontStyleUnderline in FontStyle then Result := Result + ',underline';
+  if FontStyleStrikeout in FontStyle then Result := Result + ',strikeout';
+  if Copy(Result, 1, 1) = ',' then Delete(Result, 1, 1);
+end;
+
+function StrToGPFontStyle(FontStyleStr: string): TGPFontStyle;
+begin
+  Result := [];
+  FontStyleStr := LowerCase(FontStyleStr);
+  if Pos('bold', FontStyleStr) > 0 then Include(Result, FontStyleBold);
+  if Pos('italic', FontStyleStr) > 0 then Include(Result, FontStyleItalic);
+  if Pos('underline', FontStyleStr) > 0 then Include(Result, FontStyleUnderline);
+  if Pos('strikeout', FontStyleStr) > 0 then Include(Result, FontStyleStrikeout);
+end;
+
 procedure SetGPPenStyle(var Pen: IGPPen; const PenStyle: TPenStyle);
 var
   PatternArray: array of Single;
@@ -439,6 +482,8 @@ begin
   RectF := gr.MeasureString(Text, Font, Origin);
   Result := RectF.Height;
 end;
+
+
 
 
 
