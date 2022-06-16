@@ -67,15 +67,17 @@ NO LIABILITY for damages of any kind.
 interface
 
 uses
-  Windows,
+  {$IFDEF MSWINDOWS}Windows,{$ENDIF}
   {$IFDEF FPC}LCLIntf, LCLType,{$ENDIF}
   {$IFDEF DCC}{$IFDEF HAS_SYSTEM_UITYPES}System.UITypes,{$ENDIF}{$ENDIF}
   SysUtils,
   Classes,
   Graphics,
-  Controls,
-  GdiPlus;
+  Controls
+  {$IFDEF MSWINDOWS},GdiPlus{$ENDIF}
+  ;
 
+{$IFDEF MSWINDOWS}
 type
   TGPCanvasHelper = class helper for TCanvas
   public
@@ -125,13 +127,13 @@ function TryStrIDToHatchStyle(const StrID: string; var hs: TGPHatchStyle): Boole
 
 var
   GPFontList: TStringList;
-
+{$ENDIF} // MSWINDOWS
 
 
 implementation
 
 
-
+{$IFDEF MSWINDOWS}
 
 { TGPCanvasHelper }
 
@@ -513,5 +515,6 @@ initialization
 finalization
   if Assigned(GPFontList) then GPFontList.Free;
 
+{$ENDIF} // MSWINDOWS
 
 end.
